@@ -1,6 +1,6 @@
 # RingReaper
 
-![Dororo](https://animesher.com/orig/2/212/2126/21262/animesher.com_dororo-gif-dororo-2019-2126294.gif)
+![Dororo](https://i.imgur.com/Hrmpefq.gif)
 
 **RingReaper** is a post-exploitation agent for Linux designed for those who need to operate stealthily, minimizing the chances of being detected by EDR solutions. The idea behind this project was to leverage **io_uring**, the new asynchronous I/O interface in the Linux kernel, specifically to avoid traditional system calls that most EDRs tend to monitor or even hook.
 
@@ -9,8 +9,6 @@ In practice, RingReaper replaces calls such as `read`, `write`, `recv`, `send`, 
 > **NOTE:** Some functions within RingReaper still rely on traditional calls, such as directory reading (`opendir`, `readdir`) or symbolic link resolution (`readlink`), because io_uring **does not yet fully support** these types of operations natively. Even so, during my tests, these calls did not trigger alerts on the tested EDRs, precisely because they fall outside the monitored network I/O paths.
 
 In summary, RingReaper was built to **avoid traditional calls as much as possible**, and even in cases where it had to use them, it demonstrated excellent evasion capabilities, with no alerts or detections from common security agents.
-
-Worked bypass against TrendMicro EDR.
 
 ## Command Reference
 
