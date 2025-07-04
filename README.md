@@ -2,7 +2,7 @@
 
 ![Dororo](https://i.imgur.com/Hrmpefq.gif)
 
-**RingReaper** is a post-exploitation agent for Linux designed for those who need to operate stealthily, minimizing the chances of being detected by EDR solutions. The idea behind this project was to leverage **io_uring**, the new asynchronous I/O interface in the Linux kernel, specifically to avoid traditional system calls that most EDRs tend to monitor or even hook.
+**RingReaper** is a simple post-exploitation agent for Linux designed for those who need to operate stealthily, minimizing the chances of being detected by EDR solutions. The idea behind this project was to leverage **io_uring**, the new asynchronous I/O interface in the Linux kernel, specifically to avoid traditional system calls that most EDRs tend to monitor or even hook.
 
 In practice, RingReaper replaces calls such as `read`, `write`, `recv`, `send`, `connect`, among others, with asynchronous I/O operations (`io_uring_prep_*`), reducing exposure to hooks and event tracing typically collected in a standardized way by security products.
 
