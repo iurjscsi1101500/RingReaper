@@ -10,6 +10,10 @@ In practice, RingReaper replaces calls such as `read`, `write`, `recv`, `send`, 
 
 In summary, RingReaper was built to **avoid traditional calls as much as possible**, and even in cases where it had to use them, it demonstrated excellent evasion capabilities, with no alerts or detections from common security agents.
 
+See the full and detailed article at:
+
+https://matheuzsecurity.github.io/hacking/evading-linux-edrs-with-io-uring/
+
 ## Command Reference
 
 | Command       | Description                                              | Backend              |
