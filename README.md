@@ -14,6 +14,8 @@ See the full and detailed article at:
 
 https://matheuzsecurity.github.io/hacking/evading-linux-edrs-with-io-uring/
 
+Author: https://www.linkedin.com/in/mathsalves/
+
 ## Command Reference
 
 | Command       | Description                                              | Backend              |
