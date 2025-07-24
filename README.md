@@ -14,6 +14,10 @@ https://matheuzsecurity.github.io/hacking/evading-linux-edrs-with-io-uring/
 
 Author: https://www.linkedin.com/in/mathsalves/
 
+Rootkit Researchers
+
+- https://discord.gg/66N5ZQppU7
+
 ## Command Reference
 
 | Command       | Description                                              | Backend              |
