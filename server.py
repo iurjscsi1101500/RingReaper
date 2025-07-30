@@ -24,6 +24,7 @@ def help():
 Available commands:
   get <path>                   - See file
   put <local_path> <remote_path> - Upload file
+  killbpf                     - Kill processes that have bpf-map and delete /sys/fs/bpf/*
   users                       - View logged users
   ss/netstat                  - View connections
   ps                          - List processes
