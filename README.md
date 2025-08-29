@@ -85,7 +85,8 @@ Agent (Target machine) :
 
 ## Contribution
 
-Feel free to make pull requests and contribute to the project, which is initially just a simple POC.
+Feel free to make pull requests and contribute to the project.
+Any errors with RingReaper, please create an issue and report it to us.
 
 ## Disclaimer
 
