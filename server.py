@@ -46,6 +46,7 @@ Agent commands (sent to the selected connection only):
   get <path>                  - See file
   put <local> <remote>        - Upload file
   killbpf                     - Kill processes that have bpf-map and delete /sys/fs/bpf/*
+  terminal                    - Get a pts terminal
   users                       - View logged users
   ss/netstat                  - View connections
   ps                          - List processes

